@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js">
+<!--<![endif]-->
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Timeline</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="">
+    <link rel="stylesheet" href="/assets/metro/css/metro-all.min.css">
+    <link rel="stylesheet" href="/assets/wallpost.css">
+</head>
+
+<body>
+    <script src="/assets/jquery.min.js"></script>
+    <script src="/assets/metro/js/metro.min.js" async defer></script>
+    <script src="/assets/validateSession.js" async defer></script>
+    <!--[if lt IE 7]>
+            <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="#">upgrade your browser</a> to improve your experience.</p>
+        <![endif]-->
+
+    <div id="loading" style="width: 100%;height: 100%;text-align: center;vertical-align:middle">
+        <img src="/img/3.gif" style="width: 80px;margin-top: 50px" />
+        <br />
+        <span>Authenticating...</span>
+    </div>
+    <div id="content" style="display: none;height: 80vh;widows: 100%;">
+        <div data-role="appbar" data-expand-point="md">
+            <a href="#" class="brand no-hover">
+                <span style="width: 105px;" class="p-2 border bd-dark border-radius">
+                    Project oAuth
+                </span>
+            </a>
+
+
+            <span style="position: absolute; right: 10px;" id="username"></span>
+        </div>
+
+        <div id="cardContainer" style="margin-top: 20px">
+
+            <div id="prep" style="margin-top: 80px"></div>
+            <div data-role="progress" id="progress" style="display: none" data-type="line" data-small="true"></div>
+            <div id="cnt">
+
+            </div>
+
+
+        </div>
+
+
+        <div class="multi-action" style="position: absolute; bottom: 20px;right: 20px;">
+            <button class="action-button rotate-minus bg-red fg-white" onclick="$(this).toggleClass('active')">
+                <span class="icon"><span class="mif-plus"></span></span>
+            </button>
+            <ul class="actions drop-up">
+                <li class="bg-orange" id="btnSignout"><a href="#"><span class="mif-lock"></span></a></li>
+                <li id="btnComment" class="bg-blue"><a href="#"><span class="mif-bubbles"></span></a></li>
+
+            </ul>
+        </div>
+
+    </div>
+
+</body>
+<script src="//cdn.ckeditor.com/4.10.1/basic/ckeditor.js"></script>
+<script>
+
+    $("doument").ready(function () {
+
+        getWallpost();
+
+        function getWallpost() {
+
+            $("#progress").slideDown();
+
+            let BASE_PATH = "http://" + (window.location.href).split("/")[2];
+
+            $.get(BASE_PATH + "/oauth/getWallpost", function (data) {
+
+                console.log("data ", data.data);
+
+                $("#cnt").html('');
+
+                var data = data.data;
+                $.each(data, function (key, e) {
+                    console.log("EE ", e)
+
+                    var p = '  <div id="cardContainer" style="margin-top: 20px">' +
+                        '   <div class="card">' +
+                        '<div class="card-header">' + e.header + ' <i style="float:right;font-size:12px"> ('+e.date+') </i></div>' +
+                        '<div class="card-content p-2">' +
+                         e.comment +
+                        '</div>' +
+                        '<div class="card-footer"> <img style="width: 25px" ' +
+                        'src="' + e.pic + '"><i style="font-size:12px"> By ' + e.username + '</i></div>' +
+                        '</div>' +
+                        '</div>';
+
+                    $("#cnt").append(p);
+
+
+                });
+
+
+                $("#progress").slideUp();
+
+            });
+
+        }
+
+        $("#btnSignout").click(function(){
+
+            let token = sessionStorage.getItem("_gtoken")
+
+            $.get("https://accounts.google.com/o/oauth2/revoke?token="+token,function(res){
+
+                sessionStorage.clear();
+                let BASE_PATH = "http://" + (window.location.href).split("/")[2];
+                window.open(BASE_PATH + "/", "_self");
+    
+            
+
+            })
+
+
+        });
+
+
+        $("#btnComment").click(function () {
+
+            Metro.dialog.create({
+                title: "Leave your comment here",
+                content: '<div id="editor" >' +
+                    '<input id="cmtTitle" type="text" data-role="input" data-prepend="Title: ">' +
+                    '<br/>' +
+                    '<textarea name="editor1" id="editor1" rows="10" cols="80" placeholder="Please type your comment here">' +
+                    '</textarea>' +
+                    '</div>' +
+                    '</div>',
+                onShow: function (el) {
+                    CKEDITOR.replace('editor1');
+                    el.addClass("ani-swoopInTop");
+                    setTimeout(function () {
+                        el.removeClass("ani-swoopInTop");
+                    }, 500);
+                },
+                onHide: function (el) {
+                    el.addClass("ani-swoopOutTop");
+                    setTimeout(function () {
+                        el.removeClass("ani-swoopOutTop");
+                    }, 500);
+                },
+                actions: [
+                    {
+                        caption: "Post",
+                        cls: "js-dialog-close alert",
+                        onclick: function () {
+
+                            $("#progress").slideDown();
+
+                            let BASE_PATH = "http://" + (window.location.href).split("/")[2];
+
+                            let obj = {
+                                userId: sessionStorage.getItem("userId"),
+                                username: sessionStorage.getItem("username"),
+                                pic: sessionStorage.getItem("pic"),
+                                header: $("#cmtTitle").val(),
+                                comment: CKEDITOR.instances['editor1'].getData(),
+                                date: (new Date()).toGMTString()
+                            }
+
+                            $.ajax(
+                                {
+                                    method: 'POST',
+                                    url: BASE_PATH + "/oauth/postComment",
+                                    data: JSON.stringify({ obj }),
+                                    contentType: "application/json; charset=utf-8",
+                                    success: function (data, status, xhr) {// success callback function
+                                        $("#progress").slideUp();
+
+                                        if (data.flag == 1) {
+                                            Metro.notify.create("Comment added successfully", "Success", {});
+                                            getWallpost();
+                                        } else {
+                                            Metro.notify.create("Comment adding failed", "Success", {});
+                                        }
+
+                                    },
+                                    async: true,
+                                    error: function (err) {
+                                        $("#progress").slideUp();
+                                        Metro.notify.create("Comment adding failed", "Success", {});
+                                    }
+                                });
+
+
+
+                        }
+                    },
+                    {
+                        caption: "Cancel",
+                        cls: "js-dialog-close",
+                        onclick: function () {
+
+
+                        }
+                    }
+                ]
+
+            });
+
+
+        })
+
+    });
+
+
+</script>
+
+</html>
